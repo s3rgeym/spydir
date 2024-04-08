@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spydir"
+authors = [{name = "Sergey M"}]
+readme = "README.md"
+license = {file = "LICENSE"}
+
+classifiers = [
+  "Topic :: Internet"
+]
+
+requires-python = ">=3.11.7"
+
+dependencies = [
+  "requests",
+]
+
+dynamic = ["version"]
+
+# pip install -e '.[dev]'
+# pip install -e '.[test]'
+[project.optional-dependencies]
+test = [
+  "pytest",
+]
+
+dev = [
+  "black",
+  "pylint",
+]
+
+[project.urls]
+Repository = "https://github.com/s3rgeym/spydir.git"
+
+[tool.setuptools.dynamic]
+version = {attr = "spydir.__version__"}
+
+[project.scripts]
+spydir = 'spydir:SpyDir.cli'
