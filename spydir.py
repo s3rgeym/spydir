@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import itertools
 import logging
 import multiprocessing as mp
@@ -16,7 +17,7 @@ from urllib.parse import urljoin
 
 import requests
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __author__ = "Sergey M"
 
@@ -56,9 +57,10 @@ class ColorHandler(logging.StreamHandler):
         logging.CRITICAL: ANSI.BRIGHT_RED,
     }
 
-    _fmt = logging.Formatter(
-        "[%(levelname).1s] %(processName)-16s - %(message)s"
-    )
+    # _fmt = logging.Formatter(
+    #     "[%(levelname).1s] %(processName)-16s - %(message)s"
+    # )
+    _fmt = logging.Formatter("[%(levelname).1s] %(message)s")
 
     def format(self, record: logging.LogRecord) -> str:
         message = self._fmt.format(record)
@@ -243,9 +245,13 @@ KNOWN_PATHES = (
 
 @dataclass
 class SpyDir:
-    output: TextIO
-    workers_num: int
-    timeout: float
+    output: TextIO = sys.stdout
+    workers_num: int | None = None
+    timeout: float | None = None
+    user_agent: str | None = None
+
+    def __post_init__(self) -> None:
+        self.workers_num = self.workers_num or (mp.cpu_count() * 2 - 1)
 
     class NameSpace(argparse.Namespace):
         input: TextIO
@@ -253,6 +259,7 @@ class SpyDir:
         workers_num: int
         debug: bool
         timeout: float
+        user_agent: str | None
 
     @classmethod
     def parse_args(
@@ -266,15 +273,14 @@ class SpyDir:
         parser.add_argument(
             "-o", "--output", type=argparse.FileType("w+"), default="-"
         )
-        parser.add_argument(
-            "-w", "--workers-num", type=int, default=mp.cpu_count() - 1
-        )
+        parser.add_argument("-w", "--workers-num", type=int)
         parser.add_argument("-d", "--debug", action="store_true", default=False)
         parser.add_argument("-t", "--timeout", type=float, default=10.0)
+        parser.add_argument("-ua", "--user-agent")
         return parser, parser.parse_args(args=argv, namespace=cls.NameSpace())
 
     @classmethod
-    def cli(cls: Type[SpyDir], argv: Sequence[str] | None = None) -> None:
+    def cli(cls: Type[SpyDir], argv: Sequence[str] | None = None) -> int | None:
         parser, args = cls.parse_args(argv)
 
         cls.configure_logger(args)
@@ -283,6 +289,7 @@ class SpyDir:
             output=args.output,
             workers_num=args.workers_num,
             timeout=args.timeout,
+            user_agent=args.user_agent,
         )
 
         sites = map(normalize_url, filter(None, args.input))
@@ -291,6 +298,7 @@ class SpyDir:
             return obj.run(sites)
         except KeyboardInterrupt:
             logger.warning("bye")
+            return 1
 
     def run(self, urls: list[str]) -> None:
         in_q = mp.JoinableQueue()
@@ -303,7 +311,13 @@ class SpyDir:
         logger.info("Directory scanning started")
 
         workers = [
-            Worker(in_q=in_q, out_q=out_q, seen=seen, timeout=self.timeout)
+            Worker(
+                in_q=in_q,
+                out_q=out_q,
+                seen=seen,
+                timeout=self.timeout,
+                user_agent=self.user_agent,
+            )
             for _ in range(self.workers_num)
         ]
 

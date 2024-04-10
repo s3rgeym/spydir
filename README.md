@@ -6,8 +6,8 @@ Directory listing scanner to search for downloadable archives and other files
 # you can use pip instead
 pipx install spydir
 
-# scan list of urls
-spydir -i urls.txt -o found.txt
+# scan list of hosts
+spydir -i hosts.txt -o results.txt
 
 # see help
 spydir -h
