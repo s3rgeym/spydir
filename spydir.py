@@ -240,8 +240,6 @@ KNOWN_PATHES = (
     # "/sql/",
     "/data/",
     "/files/",
-    # "/upload/",
-    # "/uploads/",
     "/include/",
     "/includes/",
     "/inc/",
@@ -253,8 +251,10 @@ KNOWN_PATHES = (
     "/logs/",
     "/log/",
     "/scripts/",
-    # "/utils/",
     "/tools/",
+    "/app/",
+    "/web/",
+    "/private/",
 )
 
 
