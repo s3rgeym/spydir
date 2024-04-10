@@ -12,12 +12,13 @@ import re
 import sys
 import threading
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Sequence, TextIO, Type
 from urllib.parse import urljoin
 
 import requests
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 __author__ = "Sergey M"
 
@@ -98,6 +99,12 @@ class Worker(mp.Process):
         ".yaml",
         # php
         ".inc",
+        # скрипты. Их часто используют для дампа базы, те они содержат ее креды
+        ".py",
+        ".pl",
+        ".sh",
+        ".ps",
+        ".bat",
         # other
         ".bk",
         ".bak",
@@ -186,15 +193,20 @@ class Worker(mp.Process):
             if url == top_level_url:
                 continue
 
-            # Все что можно скачать
-            if url.lower().endswith(self.downloadable_exts):
-                logger.info("found: %s", url)
-                self.out_q.put(url)
-                continue
-
             # Проверяем все вложенные папки
             if url.endswith("/"):
                 self.in_q.put(url)
+                continue
+
+            # Ищем все что можно выкачать в тч файлы без расширений
+            if not self.check_has_extension(url) or url.lower().endswith(
+                self.downloadable_exts
+            ):
+                logger.info("found: %s", url)
+                self.out_q.put(url)
+
+    def check_has_extension(self, url: str) -> bool:
+        return "." in Path(url).name
 
 
 def normalize_url(s: str) -> str:
@@ -225,11 +237,11 @@ KNOWN_PATHES = (
     "/dumps/",
     "/database/",
     "/db/",
-    "/sql/",
+    # "/sql/",
     "/data/",
     "/files/",
-    "/upload/",
-    "/uploads/",
+    # "/upload/",
+    # "/uploads/",
     "/include/",
     "/includes/",
     "/inc/",
@@ -240,6 +252,9 @@ KNOWN_PATHES = (
     "/docker/",
     "/logs/",
     "/log/",
+    "/scripts/",
+    # "/utils/",
+    "/tools/",
 )
 
 
@@ -258,6 +273,7 @@ class SpyDir:
         output: TextIO
         workers_num: int
         debug: bool
+        quiet: bool
         timeout: float
         user_agent: str | None
 
@@ -275,6 +291,7 @@ class SpyDir:
         )
         parser.add_argument("-w", "--workers-num", type=int)
         parser.add_argument("-d", "--debug", action="store_true", default=False)
+        parser.add_argument("-q", "--quiet", action="store_true", default=False)
         parser.add_argument("-t", "--timeout", type=float, default=10.0)
         parser.add_argument("-ua", "--user-agent")
         return parser, parser.parse_args(args=argv, namespace=cls.NameSpace())
@@ -340,7 +357,12 @@ class SpyDir:
     @staticmethod
     def configure_logger(args: NameSpace) -> None:
         logger.addHandler(ColorHandler())
-        logger.setLevel([logging.INFO, logging.DEBUG][args.debug])
+
+        logger.setLevel(
+            logging.CRITICAL
+            if args.quiet
+            else [logging.INFO, logging.DEBUG][args.debug]
+        )
 
 
 if __name__ == "__main__":
